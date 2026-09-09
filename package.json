@@ -1,0 +1,12 @@
+{
+  "name": "load-testing-script-bss",
+  "version": "1.0.0",
+  "private": true,
+  "description": "k6 load testing scripts for BSS",
+  "scripts": {
+    "report": "node generate-excel-report.js"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  }
+}
