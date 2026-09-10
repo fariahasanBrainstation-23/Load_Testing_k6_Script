@@ -4,7 +4,9 @@
   "private": true,
   "description": "k6 load testing scripts for BSS",
   "scripts": {
-    "report": "node generate-excel-report.js"
+    "report": "node generate-excel-report.js",
+    "selfcare-tokens": "k6 run selfcare/selfcare_login_test.js > reports/selfcare-run.log 2>&1 & node selfcare/generate-token-excel.js reports/selfcare-run.log",
+    "tokens-report": "node selfcare/generate-token-excel.js reports/selfcare-run.log"
   },
   "dependencies": {
     "exceljs": "^4.4.0"
