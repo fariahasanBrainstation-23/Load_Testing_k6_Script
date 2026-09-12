@@ -10,13 +10,12 @@ const users = new SharedArray('users', function () {
   return JSON.parse(open('./data/users.json'));
 });
 
-// Single shared file: every VU uploads the same file.
-const file = { binary: open('./excel-files/customer_createBulk_vu1.xlsx', 'b'), name: 'customer_createBulk_vu1.xlsx' };
+const fileBinary = open('./Excel-files/purchase_Suspend.xlsx', 'b');
+const FILE_NAME = 'purchase_Suspend.xlsx';
 
-const { logRequest, getLogs } = createRequestLogger('bulk_customer_create_test.js');
+const { logRequest, getLogs } = createRequestLogger('bulk_purchase_suspend_test.js');
 
-// VUS + ITERATIONS_PER_VU: each VU runs ITERATIONS_PER_VU full create flows independently.
-// e.g. VUS=5, ITERATIONS_PER_VU=2 -> 5 VUs x 2 = 10 full create flows total.
+// VUS + ITERATIONS_PER_VU: each VU runs ITERATIONS_PER_VU full suspend flows independently.
 export const options = __ENV.ITERATIONS_PER_VU
   ? {
       scenarios: {
@@ -35,7 +34,7 @@ export function handleSummary(data) {
   return {
     stdout: '',
     'reports/summary.json': JSON.stringify(data, null, 2),
-    'reports/bulk_customer_create-log.json': JSON.stringify(getLogs(), null, 2),
+    'reports/bulk_purchase_suspend-log.json': JSON.stringify(getLogs(), null, 2),
   };
 }
 
@@ -55,7 +54,7 @@ export default function () {
   checkStatus200(loginRes);
   const authHeaders = buildAuthHeaders(loginRes);
 
-  const uploadRes = uploadFile(authHeaders, file.binary, file.name);
+  const uploadRes = uploadFile(authHeaders, fileBinary, FILE_NAME);
   logRequest({
     apiName: 'FILE_UPLOAD',
     requestMethod: 'POST',
@@ -79,7 +78,7 @@ export default function () {
     return;
   }
 
-  const bulkRes = triggerBulkUpload(authHeaders, filePath, 'CUSTOMER_CREATE');
+  const bulkRes = triggerBulkUpload(authHeaders, filePath, 'PURCHASE_SUSPEND');
   logRequest({
     apiName: 'BULK_UPLOAD_TRIGGER',
     requestMethod: 'POST',
