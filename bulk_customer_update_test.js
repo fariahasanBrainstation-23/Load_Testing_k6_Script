@@ -9,12 +9,23 @@ const users = new SharedArray('users', function () {
   return JSON.parse(open('./data/users.json'));
 });
 
-const fileBinary = open('./excel-files/customer_updateBulk.xlsx', 'b');
+const fileBinary = open('./excel-files/CUSTOMER_UPDATE_10000.xlsx', 'b');
 const FILE_NAME = 'customer_updateBulk.xlsx';
 
-// UPDATES = number of full bulk-update operations (login + upload + trigger) to run.
-export const options = __ENV.UPDATES
-  ? { vus: 1, iterations: Number(__ENV.UPDATES), thresholds: defaultOptions.thresholds }
+// VUS + ITERATIONS_PER_VU: each VU runs ITERATIONS_PER_VU full update flows independently.
+// e.g. VUS=5, ITERATIONS_PER_VU=2 -> 5 VUs x 2 = 10 full update flows total.
+export const options = __ENV.ITERATIONS_PER_VU
+  ? {
+      scenarios: {
+        default: {
+          executor: 'per-vu-iterations',
+          vus: Number(__ENV.VUS) || 1,
+          iterations: Number(__ENV.ITERATIONS_PER_VU),
+          maxDuration: __ENV.DURATION || '5m',
+        },
+      },
+      thresholds: defaultOptions.thresholds,
+    }
   : defaultOptions;
 
 export default function () {

@@ -11,8 +11,20 @@ const customers = new SharedArray('customer_tokens', function () {
 
 const AMOUNT = Number(__ENV.AMOUNT) || 500;
 
-export const options = __ENV.MAX_REQUESTS
-  ? { vus: 1, iterations: Number(__ENV.MAX_REQUESTS), thresholds: defaultOptions.thresholds }
+// VUS + ITERATIONS_PER_VU: each VU runs ITERATIONS_PER_VU recharge attempts independently.
+// e.g. VUS=5, ITERATIONS_PER_VU=2 -> 5 VUs x 2 = 10 recharges total.
+export const options = __ENV.ITERATIONS_PER_VU
+  ? {
+      scenarios: {
+        default: {
+          executor: 'per-vu-iterations',
+          vus: Number(__ENV.VUS) || 1,
+          iterations: Number(__ENV.ITERATIONS_PER_VU),
+          maxDuration: __ENV.DURATION || '5m',
+        },
+      },
+      thresholds: defaultOptions.thresholds,
+    }
   : defaultOptions;
 
 export default function () {

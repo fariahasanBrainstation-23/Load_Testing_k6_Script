@@ -1,3 +1,5 @@
+import { htmlReport } from './lib/vendor/k6-reporter.bundle.js';
+import { textSummary } from './lib/vendor/k6-summary.js';
 import { sleep } from 'k6';
 import { SharedArray } from 'k6/data';
 import { defaultOptions } from './config.js';
@@ -11,9 +13,9 @@ const users = new SharedArray('users', function () {
 });
 
 // Single shared file: every VU uploads the same file.
-const file = { binary: open('./excel-files/customer_createBulk_vu1.xlsx', 'b'), name: 'customer_createBulk_vu1.xlsx' };
+const file = { binary: open('./excel-files/customer_create_10000.xlsx', 'b'), name: 'customer_createBulk_vu1.xlsx' };
 
-const { logRequest, getLogs } = createRequestLogger('bulk_customer_create_test.js');
+const { logRequest } = createRequestLogger('bulk_customer_create_test.js');
 
 // VUS + ITERATIONS_PER_VU: each VU runs ITERATIONS_PER_VU full create flows independently.
 // e.g. VUS=5, ITERATIONS_PER_VU=2 -> 5 VUs x 2 = 10 full create flows total.
@@ -33,9 +35,10 @@ export const options = __ENV.ITERATIONS_PER_VU
 
 export function handleSummary(data) {
   return {
-    stdout: '',
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'reports/bulk_customer_create-report.html': htmlReport(data),
+    'reports/summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
     'reports/summary.json': JSON.stringify(data, null, 2),
-    'reports/bulk_customer_create-log.json': JSON.stringify(getLogs(), null, 2),
   };
 }
 
