@@ -9,7 +9,7 @@ const users = new SharedArray('users', function () {
   return JSON.parse(open('./data/users.json'));
 });
 
-const fileBinary = open('./excel-files/CUSTOMER_UPDATE_10000.xlsx', 'b');
+const fileBinary = open('./excel-files/customer_update_010000.xlsx', 'b');
 const FILE_NAME = 'customer_updateBulk.xlsx';
 
 // VUS + ITERATIONS_PER_VU: each VU runs ITERATIONS_PER_VU full update flows independently.

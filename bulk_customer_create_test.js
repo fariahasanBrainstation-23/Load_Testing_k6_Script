@@ -13,7 +13,7 @@ const users = new SharedArray('users', function () {
 });
 
 // Single shared file: every VU uploads the same file.
-const file = { binary: open('./excel-files/customer_create_10000.xlsx', 'b'), name: 'customer_createBulk_vu1.xlsx' };
+const file = { binary: open('./excel-files/customer_create_010000.xlsx', 'b'), name: 'customer_createBulk_vu1.xlsx' };
 
 const { logRequest } = createRequestLogger('bulk_customer_create_test.js');
 

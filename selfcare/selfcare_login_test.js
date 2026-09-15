@@ -8,7 +8,7 @@ import { parseCsv } from './lib/csv.js';
 import { createTokenLogger } from './lib/tokenLogger.js';
 
 const credentials = new SharedArray('selfcare_credentials', function () {
-  return parseCsv(open('./data/LoginCustomer.csv'));
+  return parseCsv(open('./data/LoginCustomer100.csv'));
 });
 
 const { logToken } = createTokenLogger();

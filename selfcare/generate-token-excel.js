@@ -10,6 +10,7 @@ if (!runLogPath) {
 }
 
 const output = outputPath || path.join('reports', 'selfcare-tokens.xlsx');
+const csvOutput = path.join(__dirname, 'data', 'CustomerIdToken.csv');
 
 function parseLogs(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
@@ -34,6 +35,28 @@ function parseLogs(filePath) {
     }
   }
   return entries;
+}
+
+function escapeCsvField(value) {
+  const text = String(value ?? '');
+  if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function writeCustomerIdTokenCsv(entries) {
+  const validTokens = entries.filter((entry) => entry.Token);
+  if (validTokens.length === 0) {
+    console.warn('No successful logins with tokens found; CustomerIdToken.csv not updated');
+    return;
+  }
+
+  const lines = ['SID,Token'];
+  validTokens.forEach((entry) => {
+    lines.push(`${escapeCsvField(entry.SID)},${escapeCsvField(entry.Token)}`);
+  });
+
+  fs.writeFileSync(csvOutput, lines.join('\n') + '\n');
+  console.log(`Updated ${csvOutput} (${validTokens.length} tokens)`);
 }
 
 async function run() {
@@ -62,6 +85,8 @@ async function run() {
 
   await workbook.xlsx.writeFile(output);
   console.log(`Generated Excel report: ${output} (${entries.length} rows)`);
+
+  writeCustomerIdTokenCsv(entries);
 }
 
 run().catch((err) => {
