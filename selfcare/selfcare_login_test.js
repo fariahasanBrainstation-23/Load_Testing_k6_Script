@@ -1,6 +1,8 @@
 import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { SharedArray } from 'k6/data';
+import { htmlReport } from '../lib/vendor/k6-reporter.bundle.js';
+import { textSummary } from '../lib/vendor/k6-summary.js';
 import { defaultOptions } from '../config.js';
 import { selfCareLogin } from './lib/auth.js';
 import { checkStatus200, checkHasJsonField } from '../lib/checks.js';
@@ -25,6 +27,15 @@ export const options = {
   },
   thresholds: defaultOptions.thresholds,
 };
+
+export function handleSummary(data) {
+  return {
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'reports/selfcare_login-report.html': htmlReport(data),
+    'reports/selfcare_login-summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
+    'reports/selfcare_login-summary.json': JSON.stringify(data, null, 2),
+  };
+}
 
 export default function () {
   const cred = credentials[exec.scenario.iterationInTest];

@@ -1,5 +1,7 @@
 import { sleep } from 'k6';
 import { SharedArray } from 'k6/data';
+import { htmlReport } from './lib/vendor/k6-reporter.bundle.js';
+import { textSummary } from './lib/vendor/k6-summary.js';
 import { defaultOptions } from './config.js';
 import { login } from './lib/auth.js';
 import { checkStatus200, checkHasJsonField } from './lib/checks.js';
@@ -23,6 +25,15 @@ export const options = __ENV.ITERATIONS_PER_VU
       thresholds: defaultOptions.thresholds,
     }
   : defaultOptions;
+
+export function handleSummary(data) {
+  return {
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'reports/login-report.html': htmlReport(data),
+    'reports/login-summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
+    'reports/login-summary.json': JSON.stringify(data, null, 2),
+  };
+}
 
 export default function () {
   const user = users[Math.floor(Math.random() * users.length)];

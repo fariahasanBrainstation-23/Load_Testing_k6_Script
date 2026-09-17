@@ -1,6 +1,8 @@
 import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { SharedArray } from 'k6/data';
+import { htmlReport } from './lib/vendor/k6-reporter.bundle.js';
+import { textSummary } from './lib/vendor/k6-summary.js';
 import { BASE_URL } from './config.js';
 import { login, buildAuthHeaders } from './lib/auth.js';
 import { manualRecharge } from './lib/manualRecharge.js';
@@ -24,7 +26,7 @@ export const options = {
       executor: 'shared-iterations',
       vus: Number(__ENV.VUS) || 1,
       iterations: sids.length,
-      maxDuration: __ENV.DURATION || '5m',
+      maxDuration: __ENV.DURATION || '50m',
     },
   },
   thresholds: {
@@ -35,7 +37,9 @@ export const options = {
 
 export function handleSummary(data) {
   return {
-    stdout: '',
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'reports/bulk_manual_recharge-report.html': htmlReport(data),
+    'reports/bulk_manual_recharge-summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
     'reports/summary.json': JSON.stringify(data, null, 2),
     'reports/bulk_manual_recharge-log.json': JSON.stringify(getLogs(), null, 2),
   };
@@ -50,6 +54,7 @@ export default function () {
     apiName: 'LOGIN',
     requestMethod: 'POST',
     url: loginRes.url,
+    requestPayload: { username: user.username, password: user.password },
     statusCode: loginRes.status,
     errorMessage: loginRes.error || '',
     responseTime: loginRes.timings?.duration,
@@ -58,11 +63,12 @@ export default function () {
   checkStatus200(loginRes);
   const authHeaders = buildAuthHeaders(loginRes);
 
-  const rechargeRes = manualRecharge(authHeaders, sid);
+  const { response: rechargeRes, payload: rechargePayload } = manualRecharge(authHeaders, sid);
   logRequest({
     apiName: `MANUAL_RECHARGE (${sid})`,
     requestMethod: 'POST',
     url: `${BASE_URL}/myrace-master-billing/api/v1/billing/transaction/manual-recharge`,
+    requestPayload: rechargePayload,
     statusCode: rechargeRes.status,
     errorMessage: rechargeRes.error || '',
     responseTime: rechargeRes.timings?.duration,

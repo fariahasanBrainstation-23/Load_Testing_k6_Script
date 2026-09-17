@@ -13,7 +13,7 @@ const users = new SharedArray('users', function () {
 });
 
 // Single shared file: every VU uploads the same file.
-const file = { binary: open('./excel-files/customer_create_010000.xlsx', 'b'), name: 'customer_createBulk_vu1.xlsx' };
+const file = { binary: open('./excel-files/Customer V3.0 create.xlsx', 'b'), name: 'customer_createBulk_vu1.xlsx' };
 
 const { logRequest } = createRequestLogger('bulk_customer_create_test.js');
 
@@ -50,6 +50,7 @@ export default function () {
     apiName: 'LOGIN',
     requestMethod: 'POST',
     url: loginRes.url,
+    requestPayload: { username: user.username, password: user.password },
     statusCode: loginRes.status,
     errorMessage: loginRes.error || '',
     responseTime: loginRes.timings?.duration,
@@ -63,6 +64,7 @@ export default function () {
     apiName: 'FILE_UPLOAD',
     requestMethod: 'POST',
     url: uploadRes.url,
+    requestPayload: `multipart file: ${file.name}`,
     statusCode: uploadRes.status,
     errorMessage: uploadRes.error || '',
     responseTime: uploadRes.timings?.duration,
@@ -87,6 +89,7 @@ export default function () {
     apiName: 'BULK_UPLOAD_TRIGGER',
     requestMethod: 'POST',
     url: bulkRes.url,
+    requestPayload: { file: filePath, code: 'CUSTOMER_CREATE', instance: true },
     statusCode: bulkRes.status,
     errorMessage: bulkRes.error || '',
     responseTime: bulkRes.timings?.duration,

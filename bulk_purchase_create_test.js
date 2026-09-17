@@ -1,5 +1,7 @@
 import { sleep } from 'k6';
 import { SharedArray } from 'k6/data';
+import { htmlReport } from './lib/vendor/k6-reporter.bundle.js';
+import { textSummary } from './lib/vendor/k6-summary.js';
 import { defaultOptions } from './config.js';
 import { login, buildAuthHeaders } from './lib/auth.js';
 import { uploadFile, triggerBulkUpload } from './lib/bulkUpload.js';
@@ -32,7 +34,9 @@ export const options = __ENV.ITERATIONS_PER_VU
 
 export function handleSummary(data) {
   return {
-    stdout: '',
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'reports/bulk_purchase_create-report.html': htmlReport(data),
+    'reports/bulk_purchase_create-summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
     'reports/summary.json': JSON.stringify(data, null, 2),
     'reports/bulk_purchase_create-log.json': JSON.stringify(getLogs(), null, 2),
   };
@@ -46,6 +50,7 @@ export default function () {
     apiName: 'LOGIN',
     requestMethod: 'POST',
     url: loginRes.url,
+    requestPayload: { username: user.username, password: user.password },
     statusCode: loginRes.status,
     errorMessage: loginRes.error || '',
     responseTime: loginRes.timings?.duration,
@@ -59,6 +64,7 @@ export default function () {
     apiName: 'FILE_UPLOAD',
     requestMethod: 'POST',
     url: uploadRes.url,
+    requestPayload: `multipart file: ${FILE_NAME}`,
     statusCode: uploadRes.status,
     errorMessage: uploadRes.error || '',
     responseTime: uploadRes.timings?.duration,
@@ -83,6 +89,7 @@ export default function () {
     apiName: 'BULK_UPLOAD_TRIGGER',
     requestMethod: 'POST',
     url: bulkRes.url,
+    requestPayload: { file: filePath, code: 'PURCHASE_ACTIVATE', instance: true },
     statusCode: bulkRes.status,
     errorMessage: bulkRes.error || '',
     responseTime: bulkRes.timings?.duration,

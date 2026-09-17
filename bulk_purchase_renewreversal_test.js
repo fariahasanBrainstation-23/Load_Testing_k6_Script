@@ -1,5 +1,7 @@
 import { sleep } from 'k6';
 import { SharedArray } from 'k6/data';
+import { htmlReport } from './lib/vendor/k6-reporter.bundle.js';
+import { textSummary } from './lib/vendor/k6-summary.js';
 import { defaultOptions } from './config.js';
 import { login, buildAuthHeaders } from './lib/auth.js';
 import { uploadFile, triggerBulkUpload } from './lib/bulkUpload.js';
@@ -32,7 +34,9 @@ export const options = __ENV.ITERATIONS_PER_VU
 
 export function handleSummary(data) {
   return {
-    stdout: '',
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'reports/bulk_purchase_renewreversal-report.html': htmlReport(data),
+    'reports/bulk_purchase_renewreversal-summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
     'reports/summary.json': JSON.stringify(data, null, 2),
     'reports/bulk_purchase_renewreversal-log.json': JSON.stringify(getLogs(), null, 2),
   };

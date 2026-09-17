@@ -14,16 +14,18 @@ const customers = new SharedArray('customer_tokens', function () {
 });
 
 const AMOUNT = Number(__ENV.AMOUNT) || 500;
+const REPEAT = Number(__ENV.REPEAT) || 1;
 
 const { logRequest } = createRequestLogger('online_recharge_test.js');
 
-// Recharges each customer in data/CustomerIdToken.csv exactly once, spread across VUS concurrent VUs.
+// Recharges each customer in data/CustomerIdToken.csv REPEAT times (default 1), spread across VUS concurrent VUs.
+// e.g. 100 customers, REPEAT=2 -> 200 total recharge calls, each customer hit 2 times.
 export const options = {
   scenarios: {
     default: {
       executor: 'shared-iterations',
       vus: Number(__ENV.VUS) || 1,
-      iterations: customers.length,
+      iterations: customers.length * REPEAT,
       maxDuration: __ENV.DURATION || '5m',
     },
   },
@@ -40,13 +42,14 @@ export function handleSummary(data) {
 }
 
 export default function () {
-  const customer = customers[exec.scenario.iterationInTest];
+  const customer = customers[exec.scenario.iterationInTest % customers.length];
   const res = initiateOnlineRecharge(customer.Token, AMOUNT);
 
   logRequest({
     apiName: 'ONLINE_RECHARGE_INITIATE',
     requestMethod: 'POST',
     url: res.url,
+    requestPayload: { amount: AMOUNT, offerCode: null },
     statusCode: res.status,
     errorMessage: res.error || '',
     responseTime: res.timings?.duration,
