@@ -19,6 +19,9 @@ const sids = new SharedArray('sids', function () {
 
 const { logRequest, getLogs } = createRequestLogger('bulk_manual_recharge_test.js');
 
+// Only the exact string 'true' enables per-iteration login (k6 env values are strings, so 'false' must not count as on).
+const LOGIN_PER_ITERATION = __ENV.LOGIN_PER_ITERATION === 'true';
+
 // Processes each SID in data/sids.json exactly once, spread across VUS concurrent VUs.
 export const options = {
   scenarios: {
@@ -35,20 +38,7 @@ export const options = {
   },
 };
 
-export function handleSummary(data) {
-  return {
-    stdout: textSummary(data, { indent: ' ', enableColors: true }),
-    'reports/bulk_manual_recharge-report.html': htmlReport(data),
-    'reports/bulk_manual_recharge-summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
-    'reports/summary.json': JSON.stringify(data, null, 2),
-    'reports/bulk_manual_recharge-log.json': JSON.stringify(getLogs(), null, 2),
-  };
-}
-
-export default function () {
-  const sid = sids[exec.scenario.iterationInTest];
-  const user = users[Math.floor(Math.random() * users.length)];
-
+function loginAndLog(user) {
   const loginRes = login(user.username, user.password);
   logRequest({
     apiName: 'LOGIN',
@@ -61,11 +51,54 @@ export default function () {
     responseBody: loginRes.body,
   });
   checkStatus200(loginRes);
-  const authHeaders = buildAuthHeaders(loginRes);
+  return loginRes;
+}
+
+// Mode A (default): log in once per distinct user here, before the timed load, and share the tokens with every VU.
+// If any login fails the whole run aborts, so a bad account can't silently fire every recharge without a token.
+// Skipped entirely in Mode B (LOGIN_PER_ITERATION=true), where each iteration logs in itself.
+export function setup() {
+  if (LOGIN_PER_ITERATION) return { tokens: [] };
+
+  const seen = {};
+  const tokens = [];
+  for (const user of users) {
+    if (seen[user.username]) continue;
+    seen[user.username] = true;
+
+    const loginRes = loginAndLog(user);
+    if (loginRes.status !== 200) {
+      throw new Error(`setup login failed for ${user.username} (status ${loginRes.status}): ${loginRes.body}`);
+    }
+    tokens.push(buildAuthHeaders(loginRes));
+  }
+  return { tokens };
+}
+
+export function handleSummary(data) {
+  return {
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'reports/bulk_manual_recharge-report.html': htmlReport(data),
+    'reports/bulk_manual_recharge-summary.txt': textSummary(data, { indent: ' ', enableColors: false }),
+    'reports/summary.json': JSON.stringify(data, null, 2),
+    'reports/bulk_manual_recharge-log.json': JSON.stringify(getLogs(), null, 2),
+  };
+}
+
+export default function (data) {
+  const sid = sids[exec.scenario.iterationInTest];
+
+  let authHeaders;
+  if (LOGIN_PER_ITERATION) {
+    const user = users[Math.floor(Math.random() * users.length)];
+    authHeaders = buildAuthHeaders(loginAndLog(user));
+  } else {
+    authHeaders = data.tokens[(__VU - 1) % data.tokens.length];
+  }
 
   const { response: rechargeRes, payload: rechargePayload } = manualRecharge(authHeaders, sid);
   logRequest({
-    apiName: `MANUAL_RECHARGE (${sid})`,
+    apiName: 'MANUAL_RECHARGE',
     requestMethod: 'POST',
     url: `${BASE_URL}/myrace-master-billing/api/v1/billing/transaction/manual-recharge`,
     requestPayload: rechargePayload,
@@ -76,5 +109,7 @@ export default function () {
   });
   checkStatus200(rechargeRes);
 
-  sleep(1);
+  // SLEEP=0 removes think-time so each VU sends as fast as the server answers (default stays 1s as before).
+  const sleepSeconds = __ENV.SLEEP !== undefined ? Number(__ENV.SLEEP) : 1;
+  if (sleepSeconds > 0) sleep(sleepSeconds);
 }

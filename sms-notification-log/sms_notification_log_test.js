@@ -73,7 +73,7 @@ export default function () {
   checkStatus200(defaultRes);
 
   // Only fires the unfiltered call if the user explicitly clears the default FAILED filter.
-  if (__ENV.LOAD_ALL) {
+  if (__ENV.LOAD_ALL === 'true') {
     const unfilteredRes = getSmsNotificationLog(authHeaders, { pageNumber: 0, pageSize });
     logRequest({
       apiName: 'SMS_NOTIFICATION_LOG',
