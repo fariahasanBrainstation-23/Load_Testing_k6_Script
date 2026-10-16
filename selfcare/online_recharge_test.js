@@ -1,6 +1,5 @@
 import { htmlReport } from '../lib/vendor/k6-reporter.bundle.js';
 import { textSummary } from '../lib/vendor/k6-summary.js';
-import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { SharedArray } from 'k6/data';
 import { defaultOptions } from '../config.js';
@@ -8,6 +7,7 @@ import { initiateOnlineRecharge } from './lib/onlineRecharge.js';
 import { checkStatus200 } from '../lib/checks.js';
 import { parseCsv } from './lib/csv.js';
 import { createRequestLogger } from '../lib/requestLogger.js';
+import { buildProfileOptions } from '../lib/profiles.js';
 
 const customers = new SharedArray('customer_tokens', function () {
   return parseCsv(open('./data/CustomerIdToken.csv'));
@@ -18,19 +18,14 @@ const REPEAT = Number(__ENV.REPEAT) || 1;
 
 const { logRequest } = createRequestLogger('online_recharge_test.js');
 
-// Recharges each customer in data/CustomerIdToken.csv REPEAT times (default 1), spread across VUS concurrent VUs.
-// e.g. 100 customers, REPEAT=2 -> 200 total recharge calls, each customer hit 2 times.
-export const options = {
-  scenarios: {
-    default: {
-      executor: 'shared-iterations',
-      vus: Number(__ENV.VUS) || 1,
-      iterations: customers.length * REPEAT,
-      maxDuration: __ENV.DURATION || '5m',
-    },
-  },
+// Default: recharges each customer in data/CustomerIdToken.csv REPEAT times (default 1), spread across VUS
+// concurrent VUs. PROFILE=smoke/ramp/soak/spike runs for a fixed time and cycles through the token list instead
+// (see lib/profiles.js). e.g. 100 customers, REPEAT=2 -> 200 total recharge calls, each customer hit 2 times.
+const { options, indexFor } = buildProfileOptions({
+  listLength: customers.length * REPEAT,
   thresholds: defaultOptions.thresholds,
-};
+});
+export { options };
 
 export function handleSummary(data) {
   return {
@@ -42,7 +37,7 @@ export function handleSummary(data) {
 }
 
 export default function () {
-  const customer = customers[exec.scenario.iterationInTest % customers.length];
+  const customer = customers[indexFor(exec, __VU, __ITER) % customers.length];
   const res = initiateOnlineRecharge(customer.Token, AMOUNT);
 
   logRequest({
@@ -56,6 +51,4 @@ export default function () {
     responseBody: res.body,
   });
   checkStatus200(res);
-
-  sleep(1);
 }

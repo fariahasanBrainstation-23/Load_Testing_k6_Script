@@ -1,0 +1,11 @@
+# Account codes for the Referral employee ledger (REFERRAL_EMPLOYEE_LEDGER)
+# Used by ledger/ledger_test.js -- each code is sent as accountRefId in GET /ledger.
+#
+# Put referral employee usernames, e.g. faria here, one per line.
+# Blank lines and lines starting with # are ignored.
+# Each iteration takes the next code in the list (and starts again from the top after the last one),
+# so a longer list spreads the load over more different accounts.
+#
+# TIP: use accounts that really have transactions in the date range -- an empty ledger measures very little.
+# The report counts empty responses as ledger_empty_responses.
+faria

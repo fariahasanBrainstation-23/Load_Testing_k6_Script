@@ -1,4 +1,3 @@
-import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { SharedArray } from 'k6/data';
 import { htmlReport } from '../lib/vendor/k6-reporter.bundle.js';
@@ -59,5 +58,4 @@ export default function () {
     errorMessage: passed ? '' : res.error || `login failed (status ${res.status})`,
   });
 
-  sleep(1);
 }

@@ -97,5 +97,4 @@ export default function () {
   });
   checkStatus200(bulkRes);
 
-  sleep(1);
 }

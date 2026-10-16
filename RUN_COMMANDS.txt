@@ -1,0 +1,147 @@
+LOAD TEST COMMANDS  (PowerShell, run from the project root)
+=========================================================
+
+Every command runs through run-and-archive.ps1, so results go to:
+  reports/archive/<script>/<timestamp>/
+
+
+HOW TO PICK A MODE
+------------------
+  FIXED COUNT     You decide the total number of requests.
+                  Use for: write / money / SMS flows, anything you need to control exactly.
+                  Key settings: VUS, ITERATIONS_PER_VU (or REPEAT for list-based scripts).
+                  Example: 5 VUs x 2 iterations = 10 requests, then it stops.
+
+  CONSTANT USERS  VUS users stay busy for DURATION. Total requests depend on how fast the API answers.
+                  Use for: capacity / max throughput, steady-load checks.
+                  Key settings: VUS, DURATION (default 30s). Do NOT pass ITERATIONS_PER_VU.
+                  Scripts that support PROFILE can use PROFILE=soak instead (same result).
+
+
+SETTINGS THAT APPLY ACROSS SCRIPTS
+----------------------------------
+  VUS=<n>              number of virtual users
+  DURATION=<time>      how long constant-user runs last, e.g. 30s, 5m
+  ITERATIONS_PER_VU=<n> requests per user (fixed count)
+  SLEEP=<seconds>      pause between requests; default 0 (max speed). Only in scripts that have it.
+  PROFILE=soak         constant users for DURATION (where supported)
+  REPEAT=<n>           repeat each item in the input list n times (list-based self-care scripts)
+
+Replace the "..." placeholders with real values before running.
+
+
+==========================================================
+PART 1 - CONSTANT USERS  (capacity testing: "how much can it take?")
+==========================================================
+
+Bulk customer create       WRITES DATA
+  .\run-and-archive.ps1 bulk_customer_create_test.js -e VUS=5 -e DURATION=5m
+
+Bulk customer update       WRITES DATA
+  .\run-and-archive.ps1 bulk_customer_update_test.js -e VUS=5 -e DURATION=5m
+
+Bulk purchase (all actions)   WRITES DATA
+  .\run-and-archive.ps1 bulk_purchase_create_test.js -e VUS=5 -e DURATION=5m
+  .\run-and-archive.ps1 bulk_purchase_suspend_test.js -e VUS=5 -e DURATION=5m
+  .\run-and-archive.ps1 bulk_purchase_reactivate_test.js -e VUS=5 -e DURATION=5m
+  .\run-and-archive.ps1 bulk_purchase_renew_test.js -e VUS=5 -e DURATION=5m
+  .\run-and-archive.ps1 bulk_purchase_renewreversal_test.js -e VUS=5 -e DURATION=5m
+  .\run-and-archive.ps1 bulk_purchase_disconnect_test.js -e VUS=5 -e DURATION=5m
+  .\run-and-archive.ps1 bulk_purchase_changeplan_test.js -e VUS=5 -e DURATION=5m
+
+Bulk upload (any CODE)     WRITES DATA
+  .\run-and-archive.ps1 bulk-upload/bulk_upload_test.js -e PROFILE=soak -e VUS=5 -e DURATION=5m -e CODE=PURCHASE_ACTIVATE -e FILE_PATH=Excel-files/purchase_activateBulk.xlsx
+
+Login only                 READ ONLY
+  .\run-and-archive.ps1 login_test.js -e VUS=5 -e DURATION=5m
+
+Reports and logs           READ ONLY
+  .\run-and-archive.ps1 active-subbase-report/active_subbase_report_test.js -e VUS=5 -e DURATION=5m -e BILLING_STATUSES=... -e PAGE_NUMBER=1 -e PAGE_SIZE=50
+  .\run-and-archive.ps1 btrc-report/btrc_report_test.js -e VUS=5 -e DURATION=5m -e BILLING_STATUSES=... -e PAGE_NUMBER=1 -e PAGE_SIZE=50
+  .\run-and-archive.ps1 inactive-subbase-report/inactive_subbase_report_test.js -e VUS=5 -e DURATION=5m -e BILLING_STATUSES=... -e PAGE_NUMBER=1 -e PAGE_SIZE=50
+  .\run-and-archive.ps1 recharge-list-report/recharge_list_report_test.js -e VUS=5 -e DURATION=5m -e PARTY_TYPE=... -e PAGE_NUMBER=1 -e PAGE_SIZE=50
+  .\run-and-archive.ps1 company-dashboard/company_dashboard_test.js -e VUS=5 -e DURATION=5m -e FROM_MONTH=... -e TO_MONTH=...
+  .\run-and-archive.ps1 service-monitor/service_monitor_test.js -e VUS=5 -e DURATION=5m -e PARTY_TYPE=... -e STATUS=... -e DETAILS_STATUS=... -e PAGE_SIZE=50
+  .\run-and-archive.ps1 sms-notification-log/sms_notification_log_test.js -e VUS=5 -e DURATION=5m -e PAGE_SIZE=50 -e DELIVERY_STATUS=...
+  .\run-and-archive.ps1 activity-log/billing_user_activity_log_test.js -e VUS=5 -e DURATION=5m -e PAGE_SIZE=50
+  .\run-and-archive.ps1 activity-log/customer_activity_log_test.js -e VUS=5 -e DURATION=5m -e PAGE_SIZE=50
+
+Self-care: loyalty history  READ ONLY
+  .\run-and-archive.ps1 selfcare/loyalty-history/loyalty_history_test.js -e PROFILE=soak -e VUS=5 -e DURATION=5m -e PAGE_NUMBER=1 -e PAGE_SIZE=10
+
+Self-care: online recharge  REAL MONEY
+  .\run-and-archive.ps1 selfcare/online_recharge_test.js -e PROFILE=soak -e VUS=5 -e DURATION=5m -e AMOUNT=500
+
+Self-care: forget password  REAL OTP SMS (180 s cooldown per SID)
+  .\run-and-archive.ps1 selfcare/forget-password/forget_password_test.js -e PROFILE=soak -e VUS=5 -e DURATION=5m -e SIDS_FILE=selfcare/data/forget_password_sids.txt
+
+Self-care: live support     CREATES REAL CONVERSATIONS
+  .\run-and-archive.ps1 selfcare/live-support/live_support_test.js -e PROFILE=soak -e VUS=5 -e DURATION=5m -e MESSAGE="hello" -e REPLY_TIMEOUT=...
+
+Not available as constant-users (use Part 2): ledger, send-notification, mac-remove, bulk-manual-recharge,
+utility bill, mobile recharge, self-care login.
+
+
+==========================================================
+PART 2 - FIXED COUNT  (exact number of requests)
+==========================================================
+
+Bulk customer create       WRITES DATA
+  2 creates per user, 5 users = 10 creates
+  .\run-and-archive.ps1 bulk_customer_create_test.js -e VUS=5 -e ITERATIONS_PER_VU=2
+
+Bulk customer update       WRITES DATA
+  .\run-and-archive.ps1 bulk_customer_update_test.js -e VUS=5 -e ITERATIONS_PER_VU=2
+
+Bulk purchase (all actions)   WRITES DATA
+  .\run-and-archive.ps1 bulk_purchase_create_test.js -e VUS=1 -e ITERATIONS_PER_VU=1
+  .\run-and-archive.ps1 bulk_purchase_suspend_test.js -e VUS=1 -e ITERATIONS_PER_VU=1
+  .\run-and-archive.ps1 bulk_purchase_reactivate_test.js -e VUS=1 -e ITERATIONS_PER_VU=1
+  .\run-and-archive.ps1 bulk_purchase_renew_test.js -e VUS=1 -e ITERATIONS_PER_VU=1
+  .\run-and-archive.ps1 bulk_purchase_renewreversal_test.js -e VUS=1 -e ITERATIONS_PER_VU=1
+  .\run-and-archive.ps1 bulk_purchase_disconnect_test.js -e VUS=1 -e ITERATIONS_PER_VU=1
+  .\run-and-archive.ps1 bulk_purchase_changeplan_test.js -e VUS=1 -e ITERATIONS_PER_VU=1
+
+Bulk upload (any CODE)     WRITES DATA
+  .\run-and-archive.ps1 bulk-upload/bulk_upload_test.js -e CODE=PURCHASE_ACTIVATE -e FILE_PATH=Excel-files/purchase_activateBulk.xlsx -e VUS=1 -e ITERATIONS_PER_VU=1
+
+Bulk manual recharge       REAL MONEY (hard-coded amount 3500)
+  .\run-and-archive.ps1 bulk_manual_recharge_test.js -e VUS=5
+
+Send notification          REAL SMS (one job per SIDS_PER_REQUEST chunk of data/send_notification_sids.txt)
+  .\run-and-archive.ps1 send-notification/send_notification_test.js -e VUS=3 -e SIDS_PER_REQUEST=10
+
+Mac remove                 DESTRUCTIVE (each SID once)
+  .\run-and-archive.ps1 mac-remove/mac_remove_test.js -e VUS=3
+
+Ledger                     READ ONLY
+  .\run-and-archive.ps1 ledger/ledger_test.js -e VUS=5 -e ITERATIONS_PER_VU=10 -e LEDGER_TYPE=... -e POSTING_DATE_FROM=... -e POSTING_DATE_TO=... -e PAGE_NUMBER=1 -e PAGE_SIZE=50
+  .\run-and-archive.ps1 ledger/ledger_test.js -e VUS=5 -e ITERATIONS_PER_VU=10 -e LEDGER_MIX=INVOICE:1,PAYMENT:1
+
+Self-care: login only      READ ONLY
+  .\run-and-archive.ps1 selfcare/selfcare_login_test.js -e VUS=10
+
+Self-care: loyalty history READ ONLY (REPEAT = times to repeat each token)
+  .\run-and-archive.ps1 selfcare/loyalty-history/loyalty_history_test.js -e VUS=5 -e REPEAT=2 -e PAGE_NUMBER=1 -e PAGE_SIZE=10
+
+Self-care: utility bill    WRITES DATA (REPEAT = times to repeat each entry)
+  .\run-and-archive.ps1 selfcare/utility_bill_test.js -e VUS=3 -e REPEAT=1 -e CATEGORY_CODE=... -e BILLER_CODE=... -e ACCOUNT_NUMBER=... -e BILL_AMOUNT=... -e BILLING_MONTH=... -e MOBILE_NUMBER=...
+
+Self-care: mobile recharge WRITES DATA (REPEAT = times to repeat each entry)
+  .\run-and-archive.ps1 selfcare/mobile_recharge_test.js -e VUS=3 -e REPEAT=1 -e OPERATOR_CODE=...
+
+Self-care: online recharge REAL MONEY (REPEAT = times to repeat each customer)
+  .\run-and-archive.ps1 selfcare/online_recharge_test.js -e VUS=5 -e REPEAT=1 -e AMOUNT=500
+
+Self-care: forget password REAL OTP SMS (keep the list small)
+  .\run-and-archive.ps1 selfcare/forget-password/forget_password_test.js -e VUS=5 -e SIDS_FILE=selfcare/data/forget_password_sids.txt
+
+Self-care: live support    CREATES REAL CONVERSATIONS
+  .\run-and-archive.ps1 selfcare/live-support/live_support_test.js -e REPEAT=1 -e MESSAGE="hello" -e VUS=1
+
+
+==========================================================
+OUTPUT
+==========================================================
+  reports/archive/<script>/<timestamp>/   HTML report, Excel report, summary, run log
+  reports/archive/<script>/run-history.txt   one line per run with the command used

@@ -64,5 +64,4 @@ export default function () {
   const bulkRes = triggerBulkUpload(authHeaders, filePath, 'CUSTOMER_UPDATE');
   checkStatus200(bulkRes);
 
-  sleep(1);
 }

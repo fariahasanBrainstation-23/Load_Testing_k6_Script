@@ -109,7 +109,7 @@ export default function (data) {
   });
   checkStatus200(rechargeRes);
 
-  // SLEEP=0 removes think-time so each VU sends as fast as the server answers (default stays 1s as before).
-  const sleepSeconds = __ENV.SLEEP !== undefined ? Number(__ENV.SLEEP) : 1;
+  // SLEEP=0 removes think-time so each VU sends as fast as the server answers (default 0).
+  const sleepSeconds = __ENV.SLEEP !== undefined ? Number(__ENV.SLEEP) : 0;
   if (sleepSeconds > 0) sleep(sleepSeconds);
 }

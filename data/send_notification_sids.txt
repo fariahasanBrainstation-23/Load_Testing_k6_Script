@@ -1,0 +1,19 @@
+# SID list for send-notification/send_notification_test.js
+#
+# One SID per line. Blank lines and lines starting with # are ignored.
+#
+# WARNING: each request sends a REAL SMS to every SID in it (sendInstant: true), using the template set by
+# TEMPLATE_ID (default 44, from the captured HAR). This is not a dry run -- real customers receive a real text.
+#
+# The list is split into requests of SIDS_PER_REQUEST (default 10) SIDs each. Add your SIDs below:
+SID2608000842 
+SID2608000853 
+SID2609000856 
+SID2608000843 
+SID2609012735 
+SID2609000857 
+SID2608000851 
+SID2609000855 
+SID2608000838 
+SID2608000839 
+SID2608000841

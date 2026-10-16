@@ -96,6 +96,4 @@ export default function () {
     responseBody: bulkRes.body,
   });
   checkStatus200(bulkRes);
-
-  sleep(1);
 }

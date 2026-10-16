@@ -42,5 +42,4 @@ export default function () {
   checkStatus200(res);
   checkHasJsonField(res, 'access_token');
 
-  sleep(1);
 }

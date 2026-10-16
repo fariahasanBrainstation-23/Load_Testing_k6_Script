@@ -102,5 +102,4 @@ export default function () {
     checkStatus200(filteredRes);
   }
 
-  sleep(1);
 }

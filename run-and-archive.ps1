@@ -1,12 +1,14 @@
 <#
 .SYNOPSIS
-  Runs a k6 test script, generates its Excel report, and archives every artifact
-  (HTML report, Excel report, summary files, run log) into a timestamped folder
-  under reports/archive/<script-name>/, plus appends an entry to that script's
-  run-history.txt with the exact command used.
+  Runs a k6 test script, generates its Excel report, and keeps every result of that run
+  (HTML report, Excel report, summary files, run log) in ONE place only:
+  reports/archive/<script-name>/<timestamp>/
 
-  The "latest" copies in reports/ (e.g. reports/online_recharge-report.html) are
-  left in place, untouched -- this only adds timestamped copies alongside them.
+  Nothing is left behind in reports/, so there are no duplicate copies. The run log and the
+  Excel report are written straight into the archive folder; the files the k6 script itself
+  writes into reports/ (HTML report, summary files) are moved into it once the run ends.
+  Only files modified during this run are moved, so an old leftover file can never end up
+  in a new archive. A one-line entry with the command is appended to run-history.txt.
 
 .EXAMPLE
   .\run-and-archive.ps1 selfcare/online_recharge_test.js -e VUS=5 -e REPEAT=2 -e AMOUNT=300
@@ -22,10 +24,14 @@ if ($args.Count -lt 1) {
   exit 1
 }
 
-$ScriptPath = $args[0]
+# PowerShell turns an unquoted value that contains commas (e.g. -e LEDGER_MIX=A:1,B:2) into an array, which would
+# reach k6 as two separate arguments. Join such pieces back into the single string that was typed.
+$argList = @($args | ForEach-Object { if ($_ -is [array]) { $_ -join ',' } else { "$_" } })
+
+$ScriptPath = $argList[0]
 $K6Args = @()
-if ($args.Count -gt 1) {
-  $K6Args = $args[1..($args.Count - 1)]
+if ($argList.Count -gt 1) {
+  $K6Args = $argList[1..($argList.Count - 1)]
 }
 
 # Derive the report-file base name from the script's filename, e.g.
@@ -33,12 +39,16 @@ if ($args.Count -gt 1) {
 # bulk_purchase_changeplan_test.js -> bulk_purchase_changeplan
 $baseName = [System.IO.Path]::GetFileNameWithoutExtension($ScriptPath) -replace '_test$', ''
 
-$runLog = "reports/$baseName-run.log"
-$xlsxOut = "reports/${baseName}_report.xlsx"
+$runStart = Get-Date
+$stamp = $runStart.ToString('yyyy-MM-dd_HH-mm-ss')
+$archiveRoot = "reports/archive/$baseName"
+$archiveDir = "$archiveRoot/$stamp"
+New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
 
-Remove-Item $runLog -ErrorAction SilentlyContinue
+$runLog = "$archiveDir/$baseName-run.log"
+$xlsxOut = "$archiveDir/${baseName}_report.xlsx"
 
-$displayCommand = "k6 run $($K6Args -join ' ') --console-output $runLog $ScriptPath"
+$displayCommand = "k6 run $($K6Args -join ' ') $ScriptPath"
 Write-Host "Running: $displayCommand"
 
 & k6 run @K6Args --console-output $runLog $ScriptPath
@@ -46,20 +56,33 @@ if ($LASTEXITCODE -ne 0) {
   Write-Warning "k6 exited with code $LASTEXITCODE -- continuing to generate/archive whatever ran."
 }
 
-node generate-excel-report.js $runLog $xlsxOut
+if (Test-Path $runLog) {
+  node generate-excel-report.js $runLog $xlsxOut
+}
 
-$timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-$archiveDir = "reports/archive/$baseName/$timestamp"
-New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
+# Move the files the k6 script wrote into reports/ during this run (2s margin for file-time rounding).
+# summary.json / summary.txt have no script name in them, so they are matched by time alone.
+$since = $runStart.AddSeconds(-2)
+$genericNames = @('summary.json', 'summary.txt')
+$files = @(Get-ChildItem 'reports' -File -ErrorAction SilentlyContinue | Where-Object {
+    $_.LastWriteTime -ge $since -and (
+      $_.Name -like "$baseName-*" -or $_.Name -like "${baseName}_*" -or ($genericNames -contains $_.Name))
+  })
 
-Get-ChildItem "reports" -Filter "$baseName-*" -File -ErrorAction SilentlyContinue |
-  Copy-Item -Destination $archiveDir -Force
-Get-ChildItem "reports" -Filter "${baseName}_*" -File -ErrorAction SilentlyContinue |
-  Copy-Item -Destination $archiveDir -Force
+$moved = @()
+foreach ($file in $files) {
+  # The in-memory request log is always empty (k6 runs the summary in a separate context), so don't keep it.
+  if ($file.Name -like '*-log.json' -and $file.Length -le 10) {
+    Remove-Item $file.FullName -Force
+  } else {
+    Move-Item $file.FullName -Destination $archiveDir -Force
+    $moved += $file.Name
+  }
+}
 
-$historyFile = "reports/archive/$baseName/run-history.txt"
-$logLine = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') | $displayCommand"
-Add-Content -Path $historyFile -Value $logLine
+$historyFile = "$archiveRoot/run-history.txt"
+Add-Content -Path $historyFile -Value "$($runStart.ToString('yyyy-MM-dd HH:mm:ss')) | $displayCommand"
 
 Write-Host "Archived to: $archiveDir"
+Write-Host "  Moved from reports/: $($moved -join ', ')"
 Write-Host "History log: $historyFile"

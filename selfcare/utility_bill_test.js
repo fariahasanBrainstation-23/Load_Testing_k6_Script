@@ -189,8 +189,6 @@ export default function () {
     requestCode = null;
   }
 
-  sleep(1);
-
   // Poll payment history once to check the real terminal status (not just the 202 hand-off).
   const historyRes = getPaymentHistory(token, 0, 8);
   logRequest({
@@ -215,6 +213,4 @@ export default function () {
       // ignore parse errors, history call itself is already checked/logged above
     }
   }
-
-  sleep(1);
 }

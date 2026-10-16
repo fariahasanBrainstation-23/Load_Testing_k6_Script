@@ -1,4 +1,3 @@
-import { sleep } from 'k6';
 import { SharedArray } from 'k6/data';
 import { htmlReport } from '../lib/vendor/k6-reporter.bundle.js';
 import { textSummary } from '../lib/vendor/k6-summary.js';
@@ -86,6 +85,4 @@ export default function () {
     });
     checkStatus200(unfilteredRes);
   }
-
-  sleep(1);
 }
